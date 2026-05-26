@@ -6,6 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>工時記錄</title>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     *, *::before, *::after {
@@ -258,9 +261,51 @@
     .cap-tt    { font-size: 13px; color: #374151; line-height: 1.7; }
     .cap-foot  { background: #F8FAFC; padding: 10px 18px; border-top: 1px solid #E2E8EF; text-align: center; }
     .cap-ft    { font-size: 11px; color: #94A3B8; letter-spacing: 0.3px; }
+
+    /* ── LOGIN ── */
+    #login-scr {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--navy); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 28px; padding: 40px;
+    }
+    #login-scr.fade-out { animation: lgFade 0.4s forwards; }
+    @keyframes lgFade { to { opacity: 0; pointer-events: none; } }
+    .lg-icon svg { width: 60px; height: 60px; color: white; }
+    .lg-title { color: white; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+    .lg-sub   { color: #94A3B8; font-size: 13px; text-align: center; line-height: 1.7; }
+    .btn-google {
+      display: flex; align-items: center; gap: 10px;
+      background: white; color: var(--navy); border: none;
+      padding: 14px 24px; font-size: 15px; font-weight: 600; cursor: pointer;
+      width: 100%; max-width: 300px; justify-content: center; letter-spacing: 0.3px;
+    }
+    .btn-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .lg-loading { color: #94A3B8; font-size: 13px; }
   </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-scr">
+  <div class="lg-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <rect x="3" y="4" width="18" height="18"/><path d="M16 2v4M8 2v4M3 10h18"/>
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+    </svg>
+  </div>
+  <div class="lg-title">工時記錄</div>
+  <div class="lg-sub">登入後資料自動雲端同步<br>可在任何裝置存取</div>
+  <button class="btn-google" onclick="signInGoogle()">
+    <svg viewBox="0 0 24 24">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+    使用 Google 帳號登入
+  </button>
+  <div class="lg-loading" id="lg-loading" style="display:none">驗證中…</div>
+</div>
 
 <!-- HEADER -->
 <header class="hdr">
@@ -360,8 +405,17 @@
       </div>
       <div id="prepaid-list"></div>
     </div>
+    <div class="card" style="margin-top:10px">
+      <div class="setting">
+        <div>
+          <div class="s-name" id="set-uname">—</div>
+          <div class="s-desc" id="set-uemail">—</div>
+        </div>
+        <button class="s-act danger" onclick="signOutUser()">登出</button>
+      </div>
+    </div>
     <div style="text-align:center;padding:20px 0 10px;font-size:12px;color:var(--light);line-height:1.7">
-      資料儲存於本機瀏覽器<br>換裝置前請先匯出備份
+      資料同步至 Firebase 雲端<br>可在任何裝置登入後存取
     </div>
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(this)">
   </div>
@@ -482,18 +536,32 @@
 
 <script>
 // ══════════════════════════════════════════════════
-// STORAGE KEYS
+// FIREBASE + STORAGE
 // ══════════════════════════════════════════════════
-const RK  = 'wt_recs_v2';
-const CK  = 'wt_clients_v1';
-const PK  = 'wt_pre_v1';
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyClViN_4RM-DO--2Sc04Mb3mRId2AM8iY4",
+  authDomain: "test-1e480.firebaseapp.com",
+  databaseURL: "https://test-1e480.firebaseio.com",
+  projectId: "test-1e480",
+  storageBucket: "test-1e480.firebasestorage.app",
+  messagingSenderId: "713303958067",
+  appId: "1:713303958067:web:307f3a97c7287cb2f5b946"
+};
 
-const loadRecs    = () => { try { return JSON.parse(localStorage.getItem(RK)||'[]')  } catch { return [] } };
-const saveRecs    = r  => localStorage.setItem(RK, JSON.stringify(r));
-const loadClients = () => { try { return JSON.parse(localStorage.getItem(CK)||'[]')  } catch { return [] } };
-const saveClients = c  => localStorage.setItem(CK, JSON.stringify(c));
-const loadPre     = () => { try { return JSON.parse(localStorage.getItem(PK)||'{}')  } catch { return {} } };
-const savePre     = p  => localStorage.setItem(PK, JSON.stringify(p));
+let _db = null, _uid = null;
+let MEM = { recs: [], clis: [], pre: {} };
+
+const fbRef = k  => _db.ref(`timesheet/${_uid}/${k}`);
+const fbSet  = (k, v) => { if (_db && _uid) fbRef(k).set(v); };
+
+const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
+
+const loadRecs    = () => MEM.recs;
+const saveRecs    = r  => { MEM.recs = r; fbSet('records', r); };
+const loadClients = () => MEM.clis;
+const saveClients = c  => { MEM.clis = c; fbSet('clients', c); };
+const loadPre     = () => MEM.pre;
+const savePre     = p  => { MEM.pre = p; fbSet('prepaid', p); };
 
 const AUTO_PAID = new Set(['cash', 'prepaid']);
 
@@ -1142,7 +1210,8 @@ function importData(input) {
 
 function clearAll() {
   if(!confirm('確定要刪除所有資料嗎？')) return;
-  [RK,CK,PK].forEach(k=>localStorage.removeItem(k));
+  MEM = { recs: [], clis: [], pre: {} };
+  if (_db && _uid) { fbRef('records').remove(); fbRef('clients').remove(); fbRef('prepaid').remove(); }
   toast('✓ 已清除全部資料'); renderSet(); refreshCliSelect();
 }
 
@@ -1160,10 +1229,57 @@ function toast(msg) {
 }
 
 // ══════════════════════════════════════════════════
-// INIT
+// FIREBASE AUTH + INIT
 // ══════════════════════════════════════════════════
-document.getElementById('a-date').value = todayStr();
-refreshCliSelect();
+const _lgScr  = document.getElementById('login-scr');
+const _lgLoad = document.getElementById('lg-loading');
+
+function signInGoogle() {
+  _lgLoad.style.display = 'block';
+  firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(err => { _lgLoad.style.display = 'none'; toast('登入失敗：' + err.code); });
+}
+
+function signOutUser() {
+  if (!confirm('確定要登出嗎？')) return;
+  firebase.auth().signOut();
+}
+
+(function initFirebase() {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  _db = firebase.database();
+
+  firebase.auth().onAuthStateChanged(async user => {
+    if (user) {
+      _uid = user.uid;
+      _lgLoad.style.display = 'block';
+
+      const [rSnap, cSnap, pSnap] = await Promise.all([
+        fbRef('records').once('value'),
+        fbRef('clients').once('value'),
+        fbRef('prepaid').once('value'),
+      ]);
+      MEM.recs = toArr(rSnap.val());
+      MEM.clis = toArr(cSnap.val());
+      MEM.pre  = pSnap.val() || {};
+
+      document.getElementById('set-uname').textContent  = user.displayName || '已登入';
+      document.getElementById('set-uemail').textContent = user.email || '';
+
+      _lgScr.classList.add('fade-out');
+      setTimeout(() => _lgScr.style.display = 'none', 420);
+
+      document.getElementById('a-date').value = todayStr();
+      refreshCliSelect();
+    } else {
+      _uid = null;
+      MEM  = { recs: [], clis: [], pre: {} };
+      _lgLoad.style.display = 'none';
+      _lgScr.style.display  = 'flex';
+      _lgScr.classList.remove('fade-out');
+    }
+  });
+})();
 </script>
 </body>
 </html>
