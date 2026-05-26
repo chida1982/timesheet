@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>工時記錄</title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --navy:    #1B2B4B;
+      --navy-dk: #111E33;
+      --blue:    #2563EB;
+      --bg:      #F0F2F5;
+      --surface: #FFFFFF;
+      --bd:      #E2E8EF;
+      --bd-str:  #C9D3DC;
+      --text:    #0F1923;
+      --sub:     #64748B;
+      --light:   #94A3B8;
+      --green:   #047857;
+      --green-bg:#D1FAE5;
+      --red:     #B91C1C;
+      --red-bg:  #FEE2E2;
+      --amber:   #92400E;
+      --amber-bg:#FEF3C7;
+      --nav-h:   60px;
+      --hdr-h:   52px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', '微軟正黑體', sans-serif;
+      background: var(--bg); color: var(--text);
+      max-width: 430px; margin: 0 auto; min-height: 100vh;
+      font-size: 15px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── HEADER ─────────────────────────────── */
+    .hdr {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--hdr-h); background: var(--navy);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 10px;
+      border-bottom: 1px solid var(--navy-dk);
+      color: white;
+    }
+    #hdr-back {
+      display: none; align-items: center; justify-content: center;
+      width: 30px; height: 30px; cursor: pointer; flex-shrink: 0;
+    }
+    #hdr-back svg { width: 20px; height: 20px; }
+    #hdr-title { font-size: 16px; font-weight: 600; flex: 1; letter-spacing: 0.3px; }
+    #hdr-action { cursor: pointer; display: flex; align-items: center; }
+    #hdr-action svg { width: 22px; height: 22px; }
+
+    /* ─── BOTTOM NAV ──────────────────────────── */
+    .bnav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px; height: var(--nav-h);
+      background: var(--surface); border-top: 1px solid var(--bd-str);
+      display: flex; z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .nb {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      cursor: pointer; color: var(--light); font-size: 10px;
+      font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+      border-top: 2px solid transparent; transition: color 0.15s, border-color 0.15s;
+    }
+    .nb svg { width: 20px; height: 20px; }
+    .nb.on { color: var(--navy); border-color: var(--navy); }
+
+    /* ─── MAIN ────────────────────────────────── */
+    .main { padding: 14px 14px calc(var(--nav-h) + 18px); }
+    .screen { display: none; }
+    .screen.on { display: block; }
+
+    /* ─── CARD ────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--bd);
+      padding: 16px; margin-bottom: 10px;
+    }
+
+    /* ─── FEE BAR ─────────────────────────────── */
+    .fee-bar {
+      background: var(--navy); color: white;
+      padding: 16px 18px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: stretch;
+    }
+    .fb-col { display: flex; flex-direction: column; }
+    .fb-col.right { align-items: flex-end; }
+    .fb-lbl { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.6px; }
+    .fb-val { font-size: 30px; font-weight: 700; margin-top: 5px; letter-spacing: -0.5px; }
+    .fb-rate { font-size: 12px; opacity: 0.5; margin-top: 5px; }
+
+    /* ─── FORM ────────────────────────────────── */
+    .field { margin-bottom: 14px; }
+    .fl {
+      display: block; font-size: 11px; font-weight: 700;
+      color: var(--sub); margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .inp {
+      width: 100%; padding: 11px 13px;
+      border: 1px solid var(--bd-str); background: var(--surface);
+      color: var(--text); outline: none; font-size: 15px;
+      font-family: inherit; transition: border-color 0.15s;
+      -webkit-appearance: none; appearance: none; border-radius: 0;
+    }
+    .inp:focus { border-color: var(--blue); }
+    select.inp {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 13px center;
+      padding-right: 35px;
+    }
+    textarea.inp { resize: none; line-height: 1.6; }
+    .time-row { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: center; gap: 8px; }
+    .time-sep { text-align: center; color: var(--sub); font-size: 16px; }
+
+    /* ─── BUTTON ──────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 16px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; outline: none;
+      font-family: inherit; letter-spacing: 0.3px;
+      transition: opacity 0.15s; width: 100%; border-radius: 0;
+    }
+    .btn:active { opacity: 0.78; }
+    .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .navy  { background: var(--navy); color: white; }
+    .green { background: var(--green); color: white; }
+    .red   { background: var(--red); color: white; }
+    .ghost { background: transparent; border: 1px solid var(--bd-str); color: var(--text); }
+    .sm    { padding: 7px 13px; font-size: 13px; width: auto; }
+    .link  { background: transparent; border: none; color: var(--blue); width: auto; padding: 4px 0; font-size: 13px; }
+
+    /* ─── SUMMARY ─────────────────────────────── */
+    .summary {
+      background: var(--navy); color: white;
+      padding: 18px; margin-bottom: 10px;
+    }
+    .s-period { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.6px; }
+    .s-total  { font-size: 36px; font-weight: 700; margin: 6px 0 0; letter-spacing: -1px; }
+    .s-stats  {
+      display: flex; gap: 20px; margin-top: 14px;
+      padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.13);
+    }
+    .s-val { font-size: 17px; font-weight: 600; }
+    .s-lbl { font-size: 11px; opacity: 0.5; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .s-unpaid {
+      margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.13);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .s-unpaid-lbl { font-size: 12px; opacity: 0.6; }
+    .s-unpaid-val { font-size: 15px; font-weight: 700; color: #FCA5A5; }
+
+    /* ─── TABS ────────────────────────────────── */
+    .tabs {
+      display: flex; background: var(--surface);
+      border: 1px solid var(--bd); border-bottom: none;
+      margin-bottom: 0;
+    }
+    .tab {
+      flex: 1; padding: 11px 6px; text-align: center;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--sub); border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab.on { color: var(--navy); border-color: var(--navy); font-weight: 700; }
+
+    /* ─── DATE GROUP ──────────────────────────── */
+    .date-hd {
+      font-size: 12px; font-weight: 700; color: var(--sub);
+      letter-spacing: 0.5px; text-transform: uppercase;
+      display: flex; justify-content: space-between;
+      padding: 16px 2px 6px;
+    }
+    .date-hd:first-child { padding-top: 4px; }
+    .date-hd .dh-fee { color: var(--navy); }
+
+    /* ─── RECORD ──────────────────────────────── */
+    .rec {
+      background: var(--surface); border: 1px solid var(--bd);
+      padding: 13px 14px; margin-bottom: 8px;
+      display: flex; gap: 12px;
+    }
+    .rec.unpaid { border-left: 3px solid var(--red); }
+    .rec-main { flex: 1; min-width: 0; }
+    .rec-client { font-weight: 600; font-size: 14px; }
+    .rec-time { font-size: 13px; color: var(--sub); margin-top: 3px; }
+    .rec-tasks {
+      font-size: 12px; color: var(--sub); margin-top: 4px;
+      overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .rec-side { text-align: right; flex-shrink: 0; }
+    .rec-fee  { font-size: 17px; font-weight: 700; color: var(--navy); }
+    .rec-h    { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .rec-acts { margin-top: 8px; display: flex; gap: 6px; justify-content: flex-end; }
+
+    /* ─── BADGE ───────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 7px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.3px; text-transform: uppercase;
+    }
+    .badge svg { width: 10px; height: 10px; }
+    .b-paid   { background: var(--green-bg); color: var(--green); }
+    .b-unpaid { background: var(--red-bg); color: var(--red); }
+    .b-auto   { background: #E0E7FF; color: #3730A3; }
+
+    /* ─── CLIENT CARD ─────────────────────────── */
+    .cli {
+      background: var(--surface); border: 1px solid var(--bd);
+      padding: 14px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px; cursor: pointer;
+    }
+    .cli-av {
+      width: 44px; height: 44px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; color: white;
+    }
+    .cli-info { flex: 1; min-width: 0; }
+    .cli-name { font-weight: 600; font-size: 15px; }
+    .cli-loc  { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .cli-meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .cli-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+    .cli-unpaid {
+      font-size: 11px; font-weight: 700;
+      background: var(--red-bg); color: var(--red);
+      padding: 2px 8px; letter-spacing: 0.3px;
+    }
+    .cli-chev svg { width: 16px; height: 16px; color: var(--light); }
+
+    /* ─── CHIPS ───────────────────────────────── */
+    .chips {
+      display: flex; gap: 6px; overflow-x: auto;
+      margin-bottom: 12px; padding-bottom: 2px; scrollbar-width: none;
+    }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0; padding: 6px 14px;
+      border: 1px solid var(--bd-str); background: var(--surface);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      color: var(--sub); text-transform: uppercase;
+      letter-spacing: 0.5px; transition: all 0.15s; border-radius: 0;
+    }
+    .chip.on { border-color: var(--navy); background: var(--navy); color: white; }
+
+    /* ─── DIVIDER ─────────────────────────────── */
+    .div { height: 1px; background: var(--bd); margin: 12px 0; }
+
+    /* ─── OVERLAY / SHEET ─────────────────────── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 200; align-items: flex-end;
+    }
+    .overlay.open { display: flex; }
+    .sheet {
+      background: var(--surface);
+      border-top: 3px solid var(--navy);
+      padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0));
+      width: 100%; max-height: 92vh; overflow-y: auto;
+    }
+    .sheet-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.2px; }
+
+    /* ─── SHARE ACTIONS ───────────────────────── */
+    .share-btns { display: flex; gap: 8px; margin-top: 10px; }
+    .line-btn { background: #06C755; color: white; flex: 2; }
+
+    /* ─── RECEIPT CARD PREVIEW (in modal) ─────── */
+    .rc-wrap {
+      border: 1px solid var(--bd-str);
+      margin-bottom: 14px; overflow: hidden;
+      font-size: 13px;
+    }
+    .rc-hdr {
+      background: var(--navy); color: white; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .rc-hdr-title { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    .rc-hdr-sub { font-size: 12px; opacity: 0.6; margin-top: 3px; }
+    .rc-hdr-bell svg { width: 20px; height: 20px; opacity: 0.7; }
+    .rc-body { padding: 0; }
+    .rc-section { padding: 12px 16px; border-bottom: 1px solid var(--bd); }
+    .rc-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline; padding: 3px 0;
+    }
+    .rc-lbl { color: var(--sub); font-size: 12px; }
+    .rc-val { font-weight: 600; font-size: 13px; }
+    .rc-fee-block {
+      padding: 14px 16px; background: var(--bg);
+      border-bottom: 1px solid var(--bd);
+    }
+    .rc-fee-lbl { font-size: 11px; color: var(--light); text-transform: uppercase; letter-spacing: 0.8px; }
+    .rc-fee-amt { font-size: 28px; font-weight: 700; color: var(--navy); margin-top: 4px; }
+    .rc-fee-note { font-size: 12px; color: var(--sub); margin-top: 4px; }
+    .rc-tasks { padding: 12px 16px; }
+    .rc-tasks-lbl { font-size: 11px; color: var(--light); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .rc-tasks-txt { font-size: 13px; color: #374151; line-height: 1.7; }
+    .rc-footer { background: #F8FAFC; padding: 10px 16px; border-top: 1px solid var(--bd); }
+    .rc-footer-txt { font-size: 11px; color: var(--light); text-align: center; letter-spacing: 0.3px; }
+
+    /* ─── CONFIRM ─────────────────────────────── */
+    .confirm-wrap {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    .confirm-wrap.open { display: flex; }
+    .confirm-box {
+      background: white; border-top: 3px solid var(--red);
+      padding: 22px 20px; width: calc(100% - 40px); max-width: 320px;
+    }
+    .confirm-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .confirm-box p  { font-size: 14px; color: var(--sub); margin-bottom: 18px; line-height: 1.5; }
+    .confirm-btns { display: flex; gap: 8px; }
+    .confirm-btns .btn { flex: 1; }
+
+    /* ─── SETTINGS ────────────────────────────── */
+    .setting {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 15px 0; border-bottom: 1px solid var(--bd);
+    }
+    .setting:last-child { border-bottom: none; }
+    .s-name { font-size: 15px; font-weight: 500; }
+    .s-desc { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .s-act {
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 6px 14px; border: 1px solid var(--navy);
+      color: var(--navy); background: transparent;
+      white-space: nowrap; font-family: inherit;
+    }
+    .s-act.danger { border-color: var(--red); color: var(--red); }
+    .s-act.green  { border-color: var(--green); color: var(--green); }
+
+    /* ─── TOAST ───────────────────────────────── */
+    .toast {
+      position: fixed; top: calc(var(--hdr-h) + 10px);
+      left: 50%; transform: translateX(-50%);
+      background: var(--text); color: white;
+      padding: 10px 18px; font-size: 13px; font-weight: 500;
+      z-index: 500; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ─── EMPTY ───────────────────────────────── */
+    .empty { text-align: center; padding: 50px 20px; color: var(--sub); }
+    .empty svg { width: 36px; height: 36px; margin-bottom: 12px; opacity: 0.25; }
+    .empty p { font-size: 14px; line-height: 1.6; }
+
+    /* ─── HIDDEN RECEIPT CARD (for capture) ───── */
+    #cap-card {
+      position: absolute; left: -4000px; top: 0;
+      width: 360px; background: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', sans-serif;
+      font-size: 13px; line-height: 1.5;
+      border: 1px solid #E2E8EF;
+    }
+    .cap-hdr { background: #1B2B4B; color: white; padding: 16px 18px; }
+    .cap-title { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+    .cap-sub   { font-size: 12px; opacity: 0.6; margin-top: 4px; }
+    .cap-sec   { padding: 12px 18px; border-bottom: 1px solid #E2E8EF; }
+    .cap-row   { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; }
+    .cap-rl    { color: #64748B; font-size: 12px; }
+    .cap-rv    { font-weight: 600; color: #0F1923; }
+    .cap-fee   { padding: 14px 18px; background: #F0F2F5; border-bottom: 1px solid #E2E8EF; }
+    .cap-fl    { font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
+    .cap-fa    { font-size: 28px; font-weight: 700; color: #1B2B4B; margin-top: 5px; }
+    .cap-fn    { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+    .cap-tasks { padding: 14px 18px; }
+    .cap-tl    { font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
+    .cap-tt    { font-size: 13px; color: #374151; line-height: 1.7; }
+    .cap-foot  { background: #F8FAFC; padding: 10px 18px; border-top: 1px solid #E2E8EF; text-align: center; }
+    .cap-ft    { font-size: 11px; color: #94A3B8; letter-spacing: 0.3px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div id="hdr-back" onclick="goBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 5l-7 7 7 7"/>
+    </svg>
+  </div>
+  <h1 id="hdr-title">工時記錄</h1>
+  <div id="hdr-action"></div>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+  <!-- ══ ADD ══ -->
+  <div class="screen on" id="s-add">
+    <div class="fee-bar" id="fee-bar">
+      <div class="fb-col">
+        <span class="fb-lbl">工作時數</span>
+        <span class="fb-val" id="fb-h">— h</span>
+        <span class="fb-rate" id="fb-r"></span>
+      </div>
+      <div class="fb-col right">
+        <span class="fb-lbl">本次費用</span>
+        <span class="fb-val" id="fb-f">$—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label class="fl">客戶</label>
+        <select class="inp" id="a-cli" onchange="calcPrev()"></select>
+      </div>
+      <div class="field">
+        <label class="fl">日期</label>
+        <input type="date" class="inp" id="a-date" onchange="calcPrev()">
+      </div>
+      <div class="field">
+        <label class="fl">工作起止時間</label>
+        <div class="time-row">
+          <input type="time" class="inp" id="a-s" onchange="calcPrev()">
+          <span class="time-sep">～</span>
+          <input type="time" class="inp" id="a-e" onchange="calcPrev()">
+        </div>
+      </div>
+      <div class="field">
+        <label class="fl">完成工作（傳送時自動加入稱謂與「今天」）</label>
+        <textarea class="inp" id="a-tasks" rows="5"
+          placeholder="整理了客廳，餐廳，黏地墊，吸/拖地板，吸沙發，主臥房間，客浴室…"></textarea>
+      </div>
+      <button class="btn navy" onclick="saveRec()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        儲存記錄
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ RECORDS ══ -->
+  <div class="screen" id="s-rec">
+    <div class="tabs" id="rec-tabs">
+      <div class="tab on" onclick="swRecTab('today',this)">今日</div>
+      <div class="tab" onclick="swRecTab('week',this)">本週</div>
+      <div class="tab" onclick="swRecTab('month',this)">本月</div>
+    </div>
+    <div id="rec-list" style="padding-top:10px"></div>
+  </div>
+
+  <!-- ══ CLIENTS ══ -->
+  <div class="screen" id="s-cli">
+    <div id="cli-list"></div>
+  </div>
+
+  <!-- ══ DETAIL ══ -->
+  <div class="screen" id="s-det">
+    <div class="chips" id="det-chips"></div>
+    <div id="det-content"></div>
+  </div>
+
+  <!-- ══ SETTINGS ══ -->
+  <div class="screen" id="s-set">
+    <div class="card">
+      <div class="setting">
+        <div><div class="s-name">匯出資料備份</div><div class="s-desc">下載 JSON 檔案備份</div></div>
+        <button class="s-act" onclick="exportData()">匯出</button>
+      </div>
+      <div class="setting">
+        <div><div class="s-name">匯入資料</div><div class="s-desc">從備份 JSON 還原記錄</div></div>
+        <button class="s-act" onclick="document.getElementById('imp-file').click()">匯入</button>
+      </div>
+      <div class="setting">
+        <div><div class="s-name">清除全部資料</div><div class="s-desc">刪除所有工時記錄（無法復原）</div></div>
+        <button class="s-act danger" onclick="clearAll()">清除</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="setting">
+        <div>
+          <div class="s-name">林小姐 預付餘額</div>
+          <div class="s-desc">惠宇澄品，每次預付 10,000 扣抵</div>
+        </div>
+        <span id="pre-bal" style="font-size:14px;font-weight:700;color:var(--navy)">載入中</span>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn ghost sm" onclick="resetPrepaid()">重設餘額為 10,000</button>
+      </div>
+    </div>
+    <div style="text-align:center;padding:20px 0 10px;font-size:12px;color:var(--light);line-height:1.7">
+      資料儲存於本機瀏覽器<br>換裝置前請先匯出備份
+    </div>
+    <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(this)">
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <div class="nb on" id="n-add" onclick="goNav('add',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
+    </svg>
+    新增
+  </div>
+  <div class="nb" id="n-rec" onclick="goNav('rec',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <path d="M9 12h6M9 16h4"/>
+    </svg>
+    紀錄
+  </div>
+  <div class="nb" id="n-cli" onclick="goNav('cli',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+    </svg>
+    客戶
+  </div>
+  <div class="nb" id="n-set" onclick="goNav('set',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+    設定
+  </div>
+</nav>
+
+<!-- SHARE OVERLAY -->
+<div class="overlay" id="share-ov" onclick="closeShare(event)">
+  <div class="sheet">
+    <div class="sheet-title">傳送費用明細</div>
+    <div class="rc-wrap" id="rc-preview"><!-- populated dynamically --></div>
+    <div class="share-btns">
+      <button class="btn ghost sm" style="flex:1;padding:12px" onclick="copyShareText()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        複製文字
+      </button>
+      <button class="btn line-btn" style="flex:2" onclick="shareImage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+        </svg>
+        圖片分享
+      </button>
+    </div>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeShare()">取消</button>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="confirm-wrap" id="conf-ov">
+  <div class="confirm-box">
+    <h3>刪除確認</h3>
+    <p>確定要刪除這筆工時記錄嗎？此動作無法復原。</p>
+    <div class="confirm-btns">
+      <button class="btn ghost" onclick="closeConf()">取消</button>
+      <button class="btn red" onclick="doDelete()">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- HIDDEN RECEIPT CARD (for html2canvas capture) -->
+<div id="cap-card">
+  <div class="cap-hdr">
+    <div class="cap-title" id="cap-title"></div>
+    <div class="cap-sub" id="cap-sub"></div>
+  </div>
+  <div class="cap-sec" id="cap-details"></div>
+  <div class="cap-fee">
+    <div class="cap-fl">本次費用</div>
+    <div class="cap-fa" id="cap-fee-amt"></div>
+    <div class="cap-fn" id="cap-fee-note"></div>
+  </div>
+  <div class="cap-tasks">
+    <div class="cap-tl">完成項目</div>
+    <div class="cap-tt" id="cap-tasks-txt"></div>
+  </div>
+  <div class="cap-foot">
+    <div class="cap-ft" id="cap-footer"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CLIENT DATA
+// ══════════════════════════════════════════════════
+const CLIENTS = [
+  { id:'wu',    name:'吳小姐', loc:'惠宇大其心 3A',   rate:500, payment:'現金－當日結算',       salute:'姐姐', billing:'cash'     },
+  { id:'chen1', name:'陳先生', loc:'惠宇大其心 26A',  rate:550, payment:'現金－當日結算',       salute:'先生', billing:'cash'     },
+  { id:'wang',  name:'王小姐', loc:'惠宇大其心 5C',   rate:550, payment:'單次轉帳（中國信託）', salute:'姐姐', billing:'transfer' },
+  { id:'chen2', name:'陳小姐', loc:'惠宇大其心 23C',  rate:550, payment:'單次轉帳（中國信託）', salute:'姐姐', billing:'transfer' },
+  { id:'lai1',  name:'賴小姐', loc:'聯聚信義大廈',    rate:500, payment:'月結轉帳（中國信託）', salute:'姐姐', billing:'monthly'  },
+  { id:'lai2',  name:'賴小姐', loc:'美術館',          rate:500, payment:'現金－當日結算',       salute:'姐姐', billing:'cash'     },
+  { id:'chiu',  name:'邱小姐', loc:'打裡摺楓樹 4A',  rate:500, payment:'月結轉帳（Line Pay）', salute:'姐姐', billing:'monthly'  },
+  { id:'chan',  name:'詹小姐', loc:'打裡摺楓樹 14C', rate:500, payment:'單次轉帳（Line Pay）', salute:'姐姐', billing:'transfer' },
+  { id:'lin',   name:'林小姐', loc:'惠宇澄品',        rate:500, payment:'每次預付 10,000 扣抵', salute:'姐姐', billing:'prepaid'  },
+  { id:'shao',  name:'邵',     loc:'福星路',           rate:500, payment:'現金－當日結算',       salute:'您好', billing:'cash'     },
+  { id:'xu',    name:'許小姐', loc:'雙橡園 S1 特區',  rate:500, payment:'單次轉帳（中國信託）', salute:'姐姐', billing:'transfer' },
+];
+
+// Auto-paid billing types
+const AUTO_PAID = new Set(['cash', 'prepaid']);
+
+// ══════════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════════
+const RK = 'wt_recs_v2';
+const PK = 'wt_pre_v1';
+
+const loadRecs = ()   => { try { return JSON.parse(localStorage.getItem(RK)||'[]') } catch { return [] } };
+const saveRecs = r    => localStorage.setItem(RK, JSON.stringify(r));
+const loadPre  = ()   => { try { return JSON.parse(localStorage.getItem(PK)||'{}') } catch { return {} } };
+const savePre  = p    => localStorage.setItem(PK, JSON.stringify(p));
+
+// ══════════════════════════════════════════════════
+// TIME & FEE
+// ══════════════════════════════════════════════════
+function calcHours(s, e) {
+  const [sh,sm] = s.split(':').map(Number);
+  const [eh,em] = e.split(':').map(Number);
+  const mins = (eh*60+em) - (sh*60+sm);
+  if (mins <= 0) return 0;
+  const blocks = Math.floor(mins / 30);
+  return ((mins % 30) > 15 ? blocks + 1 : blocks) * 0.5;
+}
+
+// ══════════════════════════════════════════════════
+// DATE
+// ══════════════════════════════════════════════════
+const WD = ['週日','週一','週二','週三','週四','週五','週六'];
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）`;
+}
+
+function weekRange() {
+  const d = new Date();
+  const s = new Date(d); s.setDate(d.getDate() - d.getDay());
+  const e = new Date(d); e.setDate(d.getDate() + (6 - d.getDay()));
+  return { s: s.toISOString().split('T')[0], e: e.toISOString().split('T')[0] };
+}
+
+function monthRange() {
+  const d = new Date();
+  return {
+    s: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0],
+    e: new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split('T')[0]
+  };
+}
+
+function filterPeriod(recs, period) {
+  const t = todayStr();
+  if (period === 'today') return recs.filter(r => r.date === t);
+  if (period === 'week')  { const {s,e} = weekRange();  return recs.filter(r => r.date >= s && r.date <= e); }
+  if (period === 'month') { const {s,e} = monthRange(); return recs.filter(r => r.date >= s && r.date <= e); }
+  return recs;
+}
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+let curScreen = 'add';
+let screenStack = [];
+let curRecTab = 'today';
+let curDetClient = null;
+let curDetPeriod = 'month';
+
+function goNav(name, el) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById('s-'+name).classList.add('on');
+  document.querySelectorAll('.nb').forEach(n => n.classList.remove('on'));
+  el.classList.add('on');
+  curScreen = name;
+  screenStack = [];
+  document.getElementById('hdr-back').style.display = 'none';
+  document.getElementById('hdr-action').innerHTML = '';
+  const titles = { add:'工時記錄', rec:'工時紀錄', cli:'客戶管理', set:'設定' };
+  document.getElementById('hdr-title').textContent = titles[name];
+  if (name === 'rec') renderRecs(curRecTab);
+  if (name === 'cli') renderClis();
+  if (name === 'set') renderSet();
+}
+
+function pushScreen(name, title) {
+  screenStack.push(curScreen);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById('s-'+name).classList.add('on');
+  curScreen = name;
+  document.getElementById('hdr-back').style.display = 'flex';
+  document.getElementById('hdr-title').textContent = title;
+}
+
+function goBack() {
+  if (!screenStack.length) return;
+  const prev = screenStack.pop();
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById('s-'+prev).classList.add('on');
+  curScreen = prev;
+  if (!screenStack.length) {
+    document.getElementById('hdr-back').style.display = 'none';
+    document.getElementById('hdr-action').innerHTML = '';
+    const el = document.querySelector('.nb.on');
+    const id = el ? el.id.replace('n-','') : 'add';
+    const titles = { add:'工時記錄', rec:'工時紀錄', cli:'客戶管理', set:'設定' };
+    document.getElementById('hdr-title').textContent = titles[id] || '';
+    if (prev === 'cli') renderClis();
+  }
+}
+
+// ══════════════════════════════════════════════════
+// ADD SCREEN
+// ══════════════════════════════════════════════════
+function initAdd() {
+  const sel = document.getElementById('a-cli');
+  CLIENTS.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = `${c.name}（${c.loc}）`;
+    sel.appendChild(o);
+  });
+  document.getElementById('a-date').value = todayStr();
+}
+
+function calcPrev() {
+  const cid = document.getElementById('a-cli').value;
+  const s   = document.getElementById('a-s').value;
+  const e   = document.getElementById('a-e').value;
+  const c   = CLIENTS.find(x => x.id === cid);
+  if (!c || !s || !e) {
+    document.getElementById('fb-h').textContent = '— h';
+    document.getElementById('fb-f').textContent = '$—';
+    document.getElementById('fb-r').textContent = '';
+    return;
+  }
+  const h = calcHours(s, e);
+  const f = h * c.rate;
+  document.getElementById('fb-h').textContent = h > 0 ? `${h} h` : '— h';
+  document.getElementById('fb-f').textContent = h > 0 ? `$${f.toLocaleString()}` : '$—';
+  document.getElementById('fb-r').textContent = `$${c.rate} / h`;
+}
+
+function saveRec() {
+  const cid   = document.getElementById('a-cli').value;
+  const date  = document.getElementById('a-date').value;
+  const start = document.getElementById('a-s').value;
+  const end   = document.getElementById('a-e').value;
+  const tasks = document.getElementById('a-tasks').value.trim();
+
+  if (!cid)        { toast('請選擇客戶'); return; }
+  if (!date)       { toast('請選擇日期'); return; }
+  if (!start||!end){ toast('請輸入起止時間'); return; }
+  if (!tasks)      { toast('請填入完成工作'); return; }
+
+  const c     = CLIENTS.find(x => x.id === cid);
+  const hours = calcHours(start, end);
+  if (hours <= 0) { toast('結束時間必須晚於開始時間'); return; }
+  const fee   = hours * c.rate;
+  const paid  = AUTO_PAID.has(c.billing);
+
+  // Prepaid deduction
+  if (c.billing === 'prepaid') {
+    const pre = loadPre();
+    pre[cid] = (pre[cid] ?? 10000) - fee;
+    savePre(pre);
+  }
+
+  const recs = loadRecs();
+  recs.push({ id: Date.now()+'', clientId:cid, date, start, end, hours, fee, paid, tasks, createdAt: new Date().toISOString() });
+  saveRecs(recs);
+
+  toast('✓ 記錄已儲存');
+  document.getElementById('a-s').value = '';
+  document.getElementById('a-e').value = '';
+  document.getElementById('a-tasks').value = '';
+  document.getElementById('a-date').value  = todayStr();
+  document.getElementById('a-cli').value   = '';
+  calcPrev();
+}
+
+// ══════════════════════════════════════════════════
+// RECORDS SCREEN
+// ══════════════════════════════════════════════════
+function swRecTab(period, el) {
+  document.querySelectorAll('#rec-tabs .tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  curRecTab = period;
+  renderRecs(period);
+}
+
+function renderRecs(period) {
+  const all  = loadRecs();
+  const recs = filterPeriod(all, period).sort((a,b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return a.start < b.start ? 1 : -1;
+  });
+  const el = document.getElementById('rec-list');
+  if (!recs.length) { el.innerHTML = emptyHTML('今日沒有工時記錄'); return; }
+
+  const totFee    = recs.reduce((s,r) => s+r.fee, 0);
+  const totHours  = recs.reduce((s,r) => s+r.hours, 0);
+  const unpaidFee = recs.filter(r=>!r.paid).reduce((s,r) => s+r.fee, 0);
+  const label = period==='today'?'今日':period==='week'?'本週':'本月';
+
+  let html = `<div class="summary">
+    <div class="s-period">${label}收入</div>
+    <div class="s-total">$${totFee.toLocaleString()}</div>
+    <div class="s-stats">
+      <div><div class="s-val">${recs.length}</div><div class="s-lbl">服務次數</div></div>
+      <div><div class="s-val">${totHours} h</div><div class="s-lbl">總時數</div></div>
+    </div>
+    ${unpaidFee > 0 ? `<div class="s-unpaid">
+      <span class="s-unpaid-lbl">未收款</span>
+      <span class="s-unpaid-val">$${unpaidFee.toLocaleString()}</span>
+    </div>` : ''}
+  </div>`;
+
+  const byDate = {};
+  recs.forEach(r => { (byDate[r.date] || (byDate[r.date]=[])).push(r); });
+  Object.keys(byDate).sort().reverse().forEach(date => {
+    const dr  = byDate[date];
+    const df  = dr.reduce((s,r) => s+r.fee, 0);
+    html += `<div class="date-hd"><span>${fmtDate(date)}</span><span class="dh-fee">$${df.toLocaleString()}</span></div>`;
+    dr.forEach(r => { html += recHTML(r, true); });
+  });
+  el.innerHTML = html;
+}
+
+function recHTML(r, showCli=false) {
+  const c = CLIENTS.find(x => x.id === r.clientId);
+  const badgeClass = AUTO_PAID.has(c?.billing) ? 'b-auto' : (r.paid ? 'b-paid' : 'b-unpaid');
+  const badgeText  = AUTO_PAID.has(c?.billing) ? '自動結算' : (r.paid ? '已收款' : '未收款');
+  const badgeIcon  = r.paid
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+  const markBtn = (!r.paid && !AUTO_PAID.has(c?.billing))
+    ? `<button class="btn green sm" onclick="markPaid('${r.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:14px;height:14px"><path d="M20 6L9 17l-5-5"/></svg>
+        確認收款
+      </button>` : '';
+
+  return `<div class="rec${r.paid||AUTO_PAID.has(c?.billing) ? '' : ' unpaid'}">
+    <div class="rec-main">
+      ${showCli ? `<div class="rec-client">${c?.name||'?'}<span style="font-size:11px;color:var(--sub);font-weight:400;margin-left:6px">${c?.loc||''}</span></div>` : ''}
+      <div class="rec-time">${r.start} ～ ${r.end}</div>
+      <div class="rec-tasks">${r.tasks}</div>
+      <div class="rec-acts">
+        <span class="badge ${badgeClass}">${badgeIcon}${badgeText}</span>
+        ${markBtn}
+      </div>
+    </div>
+    <div class="rec-side">
+      <div class="rec-fee">$${r.fee.toLocaleString()}</div>
+      <div class="rec-h">${r.hours} h</div>
+      <div style="margin-top:8px">
+        <button class="btn ghost sm" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:var(--red)" onclick="askDel('${r.id}')">刪除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// CLIENT LIST
+// ══════════════════════════════════════════════════
+function renderClis() {
+  const month = filterPeriod(loadRecs(), 'month');
+  let html = '';
+  CLIENTS.forEach(c => {
+    const cr  = month.filter(r => r.clientId === c.id);
+    const tot = cr.reduce((s,r)=>s+r.fee,0);
+    const unp = cr.filter(r=>!r.paid && !AUTO_PAID.has(c.billing)).reduce((s,r)=>s+r.fee,0);
+
+    let meta = '';
+    if (c.billing === 'prepaid') {
+      const bal = loadPre()[c.id] ?? 10000;
+      meta = `預付餘額：$${bal.toLocaleString()}`;
+    } else if (cr.length > 0) {
+      meta = `本月 $${tot.toLocaleString()}（${cr.length} 次）`;
+    } else {
+      meta = c.payment;
+    }
+
+    const unpBadge = unp > 0
+      ? `<span class="cli-unpaid">未收 $${unp.toLocaleString()}</span>` : '';
+
+    html += `<div class="cli" onclick="openDet('${c.id}')">
+      <div class="cli-av" style="background:${avColor(c.id)}">${c.name[0]}</div>
+      <div class="cli-info">
+        <div class="cli-name">${c.name}</div>
+        <div class="cli-loc">${c.loc}</div>
+        <div class="cli-meta">$${c.rate}/h &nbsp;·&nbsp; ${c.payment}</div>
+      </div>
+      <div class="cli-right">
+        ${unpBadge}
+        <div class="cli-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('cli-list').innerHTML = html || emptyHTML('尚無客戶資料');
+}
+
+function avColor(id) {
+  const pool = ['#1B2B4B','#1e5f74','#1a6b4a','#7b2d00','#5c1a72','#003366','#4a1942'];
+  let h = 0; for (const ch of id) h = (h<<5) - h + ch.charCodeAt(0);
+  return pool[Math.abs(h) % pool.length];
+}
+
+// ══════════════════════════════════════════════════
+// CLIENT DETAIL
+// ══════════════════════════════════════════════════
+function openDet(cid) {
+  curDetClient = cid;
+  curDetPeriod = 'month';
+  const c = CLIENTS.find(x => x.id === cid);
+  pushScreen('det', `${c.name}（${c.loc}）`);
+
+  document.getElementById('hdr-action').innerHTML = `
+    <div onclick="openShare('${cid}')" style="cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+      </svg>
+    </div>`;
+
+  const chips = document.getElementById('det-chips');
+  chips.innerHTML = ['today','week','month','all'].map(p => {
+    const lbl = {today:'今日',week:'本週',month:'本月',all:'全部'}[p];
+    return `<div class="chip${p==='month'?' on':''}" onclick="swDetPeriod('${p}',this)">${lbl}</div>`;
+  }).join('');
+
+  renderDet(cid, 'month');
+}
+
+function swDetPeriod(p, el) {
+  document.querySelectorAll('#det-chips .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  curDetPeriod = p;
+  renderDet(curDetClient, p);
+}
+
+function renderDet(cid, period) {
+  const c = CLIENTS.find(x => x.id === cid);
+  let recs = loadRecs().filter(r => r.clientId === cid);
+  if (period !== 'all') recs = filterPeriod(recs, period);
+  recs.sort((a,b) => a.date > b.date ? 1 : a.date < b.date ? -1 : a.start > b.start ? 1 : -1);
+
+  const el = document.getElementById('det-content');
+  if (!recs.length) { el.innerHTML = emptyHTML('這個期間沒有記錄'); return; }
+
+  const totFee   = recs.reduce((s,r)=>s+r.fee,0);
+  const totHours = recs.reduce((s,r)=>s+r.hours,0);
+  const unpaid   = recs.filter(r=>!r.paid && !AUTO_PAID.has(c.billing)).reduce((s,r)=>s+r.fee,0);
+  const lbl = {today:'今日',week:'本週',month:'本月',all:'全部記錄'}[period];
+
+  let html = `<div class="summary">
+    <div class="s-period">${lbl}收入</div>
+    <div class="s-total">$${totFee.toLocaleString()}</div>
+    <div class="s-stats">
+      <div><div class="s-val">${recs.length}</div><div class="s-lbl">服務次數</div></div>
+      <div><div class="s-val">${totHours} h</div><div class="s-lbl">總時數</div></div>
+      ${c.billing==='prepaid' ? `<div><div class="s-val">$${(loadPre()[cid]??10000).toLocaleString()}</div><div class="s-lbl">預付餘額</div></div>` : ''}
+    </div>
+    ${unpaid > 0 ? `<div class="s-unpaid">
+      <span class="s-unpaid-lbl">未收款</span>
+      <span class="s-unpaid-val">$${unpaid.toLocaleString()}</span>
+    </div>` : ''}
+  </div>`;
+
+  // Monthly bulk action
+  if (c.billing === 'monthly' && unpaid > 0) {
+    const unpaidRecs = recs.filter(r => !r.paid);
+    html += `<button class="btn green" style="margin-bottom:10px" onclick="markAllPaid('${cid}','${period}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+      確認月結付清（共 ${unpaidRecs.length} 筆，$${unpaid.toLocaleString()}）
+    </button>`;
+  }
+
+  html += `<button class="btn navy" style="margin-bottom:12px" onclick="openShare('${cid}')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+    傳送費用明細
+  </button>`;
+
+  recs.forEach(r => {
+    html += `<div style="font-size:12px;font-weight:700;color:var(--sub);letter-spacing:0.5px;text-transform:uppercase;padding:10px 2px 5px;${recs.indexOf(r)===0?'padding-top:0':''}">${fmtDate(r.date)}</div>`;
+    html += recHTML(r, false);
+  });
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════
+// PAYMENT
+// ══════════════════════════════════════════════════
+function markPaid(id) {
+  const recs = loadRecs();
+  const r = recs.find(x => x.id === id);
+  if (r) r.paid = true;
+  saveRecs(recs);
+  toast('✓ 已標記收款');
+  renderDet(curDetClient, curDetPeriod);
+  renderClis();
+}
+
+function markAllPaid(cid, period) {
+  const recs = loadRecs();
+  let targets = recs.filter(r => r.clientId === cid && !r.paid);
+  if (period !== 'all') {
+    const pr = filterPeriod(targets, period);
+    const ids = new Set(pr.map(r=>r.id));
+    targets = targets.filter(r => ids.has(r.id));
+  }
+  targets.forEach(r => r.paid = true);
+  saveRecs(recs);
+  toast(`✓ 已確認 ${targets.length} 筆付款`);
+  renderDet(cid, period);
+  renderClis();
+}
+
+// ══════════════════════════════════════════════════
+// SHARE
+// ══════════════════════════════════════════════════
+let _shareData = null;
+
+function openShare(cid) {
+  const c = CLIENTS.find(x => x.id === cid);
+  const allRecs = loadRecs().filter(r => r.clientId === cid);
+
+  // Monthly cumulative (for 總計)
+  const monthRecs = filterPeriod(allRecs, 'month')
+    .sort((a,b) => a.date > b.date ? 1 : a.date < b.date ? -1 : a.start > b.start ? 1 : -1);
+
+  // Most recent record (or from current detail period)
+  let pool = allRecs;
+  if (curDetPeriod && curDetPeriod !== 'all') pool = filterPeriod(allRecs, curDetPeriod);
+  pool = pool.sort((a,b) => a.date > b.date ? 1 : a.date < b.date ? -1 : a.start > b.start ? 1 : -1);
+
+  if (!pool.length) { toast('沒有可傳送的記錄'); return; }
+  const latest = pool[pool.length - 1];
+
+  const monthFees   = monthRecs.map(r => r.fee);
+  const monthTotal  = monthFees.reduce((s,f) => s+f, 0);
+  const totalStr    = monthFees.join('+');
+
+  _shareData = {
+    c, latest, monthRecs, monthTotal, totalStr,
+    text: `${fmtDate(latest.date)}\n工作起止時間：${latest.start}～${latest.end}\n時數：${latest.hours}/h\n費用：${latest.fee}\n總計：${totalStr}\n${c.salute}，今天${latest.tasks}`
+  };
+
+  // Populate preview in modal
+  document.getElementById('rc-preview').innerHTML = `
+    <div class="rc-hdr">
+      <div>
+        <div class="rc-hdr-title">服務費用明細</div>
+        <div class="rc-hdr-sub">${c.name}・${c.loc}</div>
+      </div>
+      <div class="rc-hdr-bell">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+      </div>
+    </div>
+    <div class="rc-body">
+      <div class="rc-section">
+        <div class="rc-row"><span class="rc-lbl">日期</span><span class="rc-val">${fmtDate(latest.date)}</span></div>
+        <div class="rc-row"><span class="rc-lbl">工作時間</span><span class="rc-val">${latest.start} ～ ${latest.end}</span></div>
+        <div class="rc-row"><span class="rc-lbl">時數</span><span class="rc-val">${latest.hours} 小時</span></div>
+        <div class="rc-row"><span class="rc-lbl">時薪</span><span class="rc-val">$${c.rate} / 時</span></div>
+      </div>
+      <div class="rc-fee-block">
+        <div class="rc-fee-lbl">本次費用</div>
+        <div class="rc-fee-amt">NT$ ${latest.fee.toLocaleString()}</div>
+        <div class="rc-fee-note">本月累計 / NT$ ${monthTotal.toLocaleString()}（共 ${monthRecs.length} 次）</div>
+      </div>
+      <div class="rc-tasks">
+        <div class="rc-tasks-lbl">完成項目</div>
+        <div class="rc-tasks-txt">${latest.tasks}</div>
+      </div>
+      <div class="rc-footer">
+        <div class="rc-footer-txt">${c.payment}</div>
+      </div>
+    </div>`;
+
+  // Populate hidden capture card
+  document.getElementById('cap-title').textContent = '服務費用明細';
+  document.getElementById('cap-sub').textContent   = `${c.name}・${c.loc}`;
+  document.getElementById('cap-details').innerHTML = `
+    <div class="cap-row"><span class="cap-rl">日期</span><span class="cap-rv">${fmtDate(latest.date)}</span></div>
+    <div class="cap-row"><span class="cap-rl">工作時間</span><span class="cap-rv">${latest.start} ～ ${latest.end}</span></div>
+    <div class="cap-row"><span class="cap-rl">時數</span><span class="cap-rv">${latest.hours} 小時</span></div>
+    <div class="cap-row"><span class="cap-rl">時薪</span><span class="cap-rv">$${c.rate} / 時</span></div>`;
+  document.getElementById('cap-fee-amt').textContent  = `NT$ ${latest.fee.toLocaleString()}`;
+  document.getElementById('cap-fee-note').textContent = `本月累計 NT$ ${monthTotal.toLocaleString()}（共 ${monthRecs.length} 次）`;
+  document.getElementById('cap-tasks-txt').textContent = latest.tasks;
+  document.getElementById('cap-footer').textContent    = c.payment;
+
+  document.getElementById('share-ov').classList.add('open');
+}
+
+function closeShare(e) {
+  if (e && e.target !== document.getElementById('share-ov')) return;
+  document.getElementById('share-ov').classList.remove('open');
+}
+
+function copyShareText() {
+  if (!_shareData) return;
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = _shareData.text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(_shareData.text).catch(fallback);
+  } else { fallback(); }
+  toast('✓ 文字已複製');
+  document.getElementById('share-ov').classList.remove('open');
+}
+
+function shareImage() {
+  if (!_shareData) return;
+  const card = document.getElementById('cap-card');
+
+  if (typeof html2canvas === 'undefined') {
+    // Fallback to text share
+    shareTextFallback();
+    return;
+  }
+
+  toast('產生圖片中…');
+  html2canvas(card, {
+    scale: 2, useCORS: true, logging: false,
+    backgroundColor: '#ffffff', scrollX: 0, scrollY: 0
+  }).then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) { shareTextFallback(); return; }
+      const file = new File([blob], 'receipt.png', { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], text: _shareData.text })
+          .then(() => document.getElementById('share-ov').classList.remove('open'))
+          .catch(() => shareTextFallback());
+      } else {
+        // Download the image
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href = url; a.download = 'receipt.png'; a.click();
+        URL.revokeObjectURL(url);
+        toast('圖片已下載，請傳送至 LINE');
+        document.getElementById('share-ov').classList.remove('open');
+      }
+    }, 'image/png');
+  }).catch(() => shareTextFallback());
+}
+
+function shareTextFallback() {
+  if (!_shareData) return;
+  if (navigator.share) {
+    navigator.share({ text: _shareData.text })
+      .then(() => document.getElementById('share-ov').classList.remove('open'))
+      .catch(() => {});
+  } else {
+    window.open('https://line.me/R/share?text=' + encodeURIComponent(_shareData.text), '_blank');
+    document.getElementById('share-ov').classList.remove('open');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// DELETE
+// ══════════════════════════════════════════════════
+let _delId = null;
+
+function askDel(id) {
+  _delId = id;
+  document.getElementById('conf-ov').classList.add('open');
+}
+
+function closeConf() {
+  _delId = null;
+  document.getElementById('conf-ov').classList.remove('open');
+}
+
+function doDelete() {
+  if (!_delId) return;
+  saveRecs(loadRecs().filter(r => r.id !== _delId));
+  closeConf(); toast('已刪除');
+  if (curScreen === 'det' && curDetClient) renderDet(curDetClient, curDetPeriod);
+  if (curScreen === 'rec') renderRecs(curRecTab);
+  renderClis();
+}
+
+// ══════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════
+function renderSet() {
+  const bal = loadPre()['lin'] ?? 10000;
+  document.getElementById('pre-bal').textContent = `$${bal.toLocaleString()}`;
+}
+
+function resetPrepaid() {
+  const pre = loadPre(); pre['lin'] = 10000; savePre(pre);
+  toast('✓ 已重設為 10,000'); renderSet();
+}
+
+function exportData() {
+  const blob = new Blob(
+    [JSON.stringify({ records: loadRecs(), prepaid: loadPre(), at: new Date().toISOString() }, null, 2)],
+    { type: 'application/json' }
+  );
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `工時記錄_${todayStr()}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('✓ 已匯出備份');
+}
+
+function importData(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (d.records) saveRecs(d.records);
+      if (d.prepaid) savePre(d.prepaid);
+      toast('✓ 已匯入資料'); renderSet();
+    } catch { toast('無法讀取此檔案'); }
+  };
+  reader.readAsText(file); input.value = '';
+}
+
+function clearAll() {
+  if (!confirm('確定要刪除所有工時記錄嗎？')) return;
+  localStorage.removeItem(RK); localStorage.removeItem(PK);
+  toast('✓ 已清除全部資料'); renderSet();
+}
+
+// ══════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════
+function emptyHTML(msg) {
+  return `<div class="empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+    </svg>
+    <p>${msg}</p>
+  </div>`;
+}
+
+let _toastTm;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTm);
+  _toastTm = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+initAdd();
+</script>
+</body>
+</html>
