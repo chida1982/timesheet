@@ -1236,8 +1236,15 @@ const _lgLoad = document.getElementById('lg-loading');
 
 function signInGoogle() {
   _lgLoad.style.display = 'block';
-  firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
-    .catch(err => { _lgLoad.style.display = 'none'; toast('登入失敗：' + err.code); });
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    // 手機用 redirect（Safari/Chrome 會封鎖 popup）
+    firebase.auth().signInWithRedirect(provider);
+  } else {
+    firebase.auth().signInWithPopup(provider)
+      .catch(err => { _lgLoad.style.display = 'none'; toast('登入失敗：' + err.code); });
+  }
 }
 
 function signOutUser() {
@@ -1248,6 +1255,10 @@ function signOutUser() {
 (function initFirebase() {
   firebase.initializeApp(FIREBASE_CONFIG);
   _db = firebase.database();
+
+  // 手機 redirect 登入後，回頁面時處理可能的錯誤
+  firebase.auth().getRedirectResult()
+    .catch(err => { if (err.code) toast('登入失敗：' + err.code); });
 
   firebase.auth().onAuthStateChanged(async user => {
     if (user) {
