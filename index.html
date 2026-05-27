@@ -1265,14 +1265,24 @@ function signOutUser() {
       _uid = user.uid;
       _lgLoad.style.display = 'block';
 
-      const [rSnap, cSnap, pSnap] = await Promise.all([
-        fbRef('records').once('value'),
-        fbRef('clients').once('value'),
-        fbRef('prepaid').once('value'),
-      ]);
-      MEM.recs = toArr(rSnap.val());
-      MEM.clis = toArr(cSnap.val());
-      MEM.pre  = pSnap.val() || {};
+      // 5 秒 timeout 防止資料庫規則未設定時永遠卡住
+      const withTO = p => Promise.race([p, new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))]);
+
+      try {
+        const [rSnap, cSnap, pSnap] = await Promise.all([
+          withTO(fbRef('records').once('value')),
+          withTO(fbRef('clients').once('value')),
+          withTO(fbRef('prepaid').once('value')),
+        ]);
+        MEM.recs = toArr(rSnap.val());
+        MEM.clis = toArr(cSnap.val());
+        MEM.pre  = pSnap.val() || {};
+      } catch (err) {
+        // 讀取失敗（權限未設定或逾時）仍進 app，toast 提示
+        const msg = err.message === 'timeout' ? '資料庫讀取逾時，請確認 Firebase 規則' : '資料庫：' + (err.code || err.message);
+        setTimeout(() => toast('⚠ ' + msg), 600);
+        MEM = { recs: [], clis: [], pre: {} };
+      }
 
       document.getElementById('set-uname').textContent  = user.displayName || '已登入';
       document.getElementById('set-uemail').textContent = user.email || '';
