@@ -1260,38 +1260,35 @@ function signOutUser() {
   firebase.auth().getRedirectResult()
     .catch(err => { if (err.code) toast('登入失敗：' + err.code); });
 
-  firebase.auth().onAuthStateChanged(async user => {
+  firebase.auth().onAuthStateChanged(user => {
     if (user) {
       _uid = user.uid;
-      _lgLoad.style.display = 'block';
 
-      // 5 秒 timeout 防止資料庫規則未設定時永遠卡住
-      const withTO = p => Promise.race([p, new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))]);
+      // ── 立刻進 app，不等資料庫 ──
+      document.getElementById('set-uname').textContent  = user.displayName || '已登入';
+      document.getElementById('set-uemail').textContent = user.email || '';
+      _lgScr.classList.add('fade-out');
+      setTimeout(() => _lgScr.style.display = 'none', 420);
+      document.getElementById('a-date').value = todayStr();
+      refreshCliSelect();
 
-      try {
-        const [rSnap, cSnap, pSnap] = await Promise.all([
-          withTO(fbRef('records').once('value')),
-          withTO(fbRef('clients').once('value')),
-          withTO(fbRef('prepaid').once('value')),
-        ]);
+      // ── 背景載入資料，完成後再刷新畫面 ──
+      Promise.all([
+        fbRef('records').once('value'),
+        fbRef('clients').once('value'),
+        fbRef('prepaid').once('value'),
+      ]).then(([rSnap, cSnap, pSnap]) => {
         MEM.recs = toArr(rSnap.val());
         MEM.clis = toArr(cSnap.val());
         MEM.pre  = pSnap.val() || {};
-      } catch (err) {
-        // 讀取失敗（權限未設定或逾時）仍進 app，toast 提示
-        const msg = err.message === 'timeout' ? '資料庫讀取逾時，請確認 Firebase 規則' : '資料庫：' + (err.code || err.message);
-        setTimeout(() => toast('⚠ ' + msg), 600);
-        MEM = { recs: [], clis: [], pre: {} };
-      }
+        refreshCliSelect();
+        // 刷新目前畫面
+        const activeNb = document.querySelector('.nb.on');
+        if (activeNb) activeNb.click();
+      }).catch(err => {
+        toast('⚠ 資料庫：' + (err.code || err.message));
+      });
 
-      document.getElementById('set-uname').textContent  = user.displayName || '已登入';
-      document.getElementById('set-uemail').textContent = user.email || '';
-
-      _lgScr.classList.add('fade-out');
-      setTimeout(() => _lgScr.style.display = 'none', 420);
-
-      document.getElementById('a-date').value = todayStr();
-      refreshCliSelect();
     } else {
       _uid = null;
       MEM  = { recs: [], clis: [], pre: {} };
